@@ -1,6 +1,15 @@
 中文版 [English Version](README_EN.md)
 [官方网站](https://danxi.fduhole.com)
 
+> ## ⚠️ 这是一个个人自编译 fork
+>
+> 这是 [DanXi-Dev/DanXi](https://github.com/DanXi-Dev/DanXi) 的个人分支，仅包含两处改动（见 `e8e26a3`）：
+>
+> 1. **主密钥兼容模式**：在 Keystore 跨重启失效的设备上（如刷机后 TEE 受损的一加 Ace 5），登录密钥无法存活。此分支将主密钥降级存储在应用私有的普通 SharedPreferences 中，使登录可跨重启保持。相关讨论见 [issue #709](https://github.com/DanXi-Dev/DanXi/issues/709)。
+> 2. **移除更新提示**：官方 release 与本分支签名不同，无法覆盖安装，提示没有意义。
+>
+> **仅建议有同样「Keystore 跨重启失效」症状的用户使用。** 普通用户请使用官方版本。此 fork 的签名密钥不公开，自行编译需提供自己的签名配置。
+
 # 旦挞
 
 [![Deploy to GitHub Pages](https://github.com/DanXi-Dev/DanXi/actions/workflows/deploy_to_gh-pages.yml/badge.svg)](https://github.com/DanXi-Dev/DanXi/actions/workflows/deploy_to_gh-pages.yml)
