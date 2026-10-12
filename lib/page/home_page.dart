@@ -827,46 +827,9 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _loadUpdate() async {
-    final UpdateInfo? updateInfo =
-        AnnouncementRepository.getInstance().checkVersion();
-    if (updateInfo == null) {
-      return;
-    }
-
-    if (updateInfo.isAfter(Version.parse(Pubspec.version.canonical))) {
-      await showPlatformDialog(
-          context: context,
-          builder: (BuildContext context) => PlatformAlertDialog(
-                title: Text(
-                  S.of(context).new_update_title,
-                ),
-                content: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(S.of(context).new_update_description(
-                        FlutterApp.versionName,
-                        updateInfo.latestVersion ?? "?")),
-                    PostRenderWidget(
-                      content: "```\n${updateInfo.changeLog}\n```",
-                      render: kMarkdownRender,
-                      hasBackgroundImage: false,
-                    )
-                  ],
-                ),
-                actions: <Widget>[
-                  PlatformDialogAction(
-                      child: PlatformText(S.of(context).update_now),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        BrowserUtil.openUrl(Constant.updateUrl(), context);
-                      }),
-                  PlatformDialogAction(
-                      child: PlatformText(S.of(context).skip),
-                      onPressed: () => Navigator.pop(context)),
-                ],
-              ));
-    }
+    // Self-build: never prompt for updates. Official releases are signed with
+    // a different key and cannot install over this build anyway.
+    return;
   }
 
   Future<void> _loadAnnouncement() async {

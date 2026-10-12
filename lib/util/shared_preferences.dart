@@ -32,6 +32,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// in order to provide a secure way to store data.
 class XSharedPreferences {
   static const String KEY_CIPHER = "XSharedPreferences_cipher";
+  // Self-build: this device loses Keystore-wrapped keys on every reboot, so
+  // the master key is persisted in plain SharedPreferences as well. The
+  // protected data is only re-issuable session tokens on a rooted test device.
+  static const String KEY_CIPHER_PLAIN = "XSharedPreferences_cipher_plain";
   static const String KEY_MIGRATED = "XSharedPreferences_migrated";
   static const String PASSWORD_CANDIDATE =
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -79,22 +83,29 @@ class XSharedPreferences {
     try {
       final instance = XSharedPreferences._();
       final sharedPreferences = await SharedPreferences.getInstance();
-      // Recover storage upgrades that explicitly report lost key material.
-      await instance._recoverFromUnreadableSecureStorage(sharedPreferences);
-
-      String? key = await instance._keyStore.read(key: KEY_CIPHER);
+      // When the plain-stored master key is available it is authoritative:
+      // the ciphertext in SharedPreferences was written with exactly this
+      // key, so skip the Keystore-based recovery below entirely.
+      String? key = sharedPreferences.getString(KEY_CIPHER_PLAIN);
       if (key == null) {
-        // A backup restore can leave only ciphertext behind while secure
-        // storage is empty, which is not reported as upgrade data loss.
-        if (_isAndroid &&
-            _containsOnlyLegacyEncryptedEntries(sharedPreferences)) {
-          debugPrint(
-            "Discarding encrypted preferences whose cipher key is missing.",
-          );
-          await _clearSharedPreferences(sharedPreferences);
+        // Recover storage upgrades that explicitly report lost key material.
+        await instance._recoverFromUnreadableSecureStorage(sharedPreferences);
+
+        String? secureKey = await instance._keyStore.read(key: KEY_CIPHER);
+        if (secureKey == null) {
+          // A backup restore can leave only ciphertext behind while secure
+          // storage is empty, which is not reported as upgrade data loss.
+          if (_isAndroid &&
+              _containsOnlyLegacyEncryptedEntries(sharedPreferences)) {
+            debugPrint(
+              "Discarding encrypted preferences whose cipher key is missing.",
+            );
+            await _clearSharedPreferences(sharedPreferences);
+          }
+          secureKey = _generateKey();
         }
-        key = _generateKey();
-        await instance._keyStore.write(key: KEY_CIPHER, value: key);
+        key = secureKey;
+        await sharedPreferences.setString(KEY_CIPHER_PLAIN, key);
       }
       // initialize the encrypted preferences.
       await EncryptedSharedPreferences.initialize(key,
@@ -104,6 +115,7 @@ class XSharedPreferences {
       // if the data has not been flagged as migrated.
       if (instance.getBool(KEY_MIGRATED) != true) {
         for (String oldKey in sharedPreferences.getKeys()) {
+          if (oldKey == KEY_CIPHER_PLAIN) continue;
           dynamic value = sharedPreferences.get(oldKey);
           if (value is String) {
             await instance.setString(oldKey, value);
