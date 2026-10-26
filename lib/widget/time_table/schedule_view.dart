@@ -267,9 +267,11 @@ class ScheduleViewState extends State<ScheduleView> {
     final block = _draggingBlock;
     if (block == null) return const SizedBox.shrink();
     final course = block.event.first.course;
-    final String? note = block.event.length == 1
-        ? (widget.courseNotes?[course.courseId])
-        : null;
+    final bool multipleCourses =
+        block.event.map((e) => e.course).toSet().length > 1;
+    final String? note = multipleCourses
+        ? null
+        : (widget.courseNotes?[course.courseId]);
     final double cardWidth = _cellWidth - 4;
     final double cardHeight = block.slotSpan * _rowHeight - 4;
     return Positioned(
@@ -483,6 +485,11 @@ class ScheduleViewState extends State<ScheduleView> {
           neighboringBlock.firstSlot =
               min(thisBlock.firstSlot, neighboringBlock.firstSlot);
           neighboringBlock.slotSpan += thisBlock.slotSpan;
+          // The event lists must grow with the span as well, otherwise a
+          // merged block only remembers the events of its last part.
+          neighboringBlock.event.addAll(thisBlock.event);
+          neighboringBlock.event
+              .sort((a, b) => a.time.slot.compareTo(b.time.slot));
         } catch (e) {
           ++i;
         }
@@ -548,7 +555,13 @@ class ScheduleViewState extends State<ScheduleView> {
 
   Widget _buildScheduleBlock(ScheduleBlock block) {
     Widget body;
-    if (block.event.length > 1) {
+    // A block can contain several overlapping courses; only then the name
+    // gets an "and more" suffix. A single course spanning several slots
+    // (which happens since adjacent blocks merge their event lists) is
+    // displayed plainly.
+    final bool multipleCourses =
+        block.event.map((e) => e.course).toSet().length > 1;
+    if (multipleCourses) {
       Course copiedCourse =
           Course.fromJson(jsonDecode(jsonEncode(block.event.first.course)));
       copiedCourse.courseName = copiedCourse.courseName! + S.current.and_more;

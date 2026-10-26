@@ -461,6 +461,7 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
     // If there is no data before, we call setState once to show a ProgressIndicator.
     if (reloadWhenEmptyData) setState(() {});
     await _contentFuture;
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -615,8 +616,9 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
       ];
       final List<CourseTime> updatedTimes = (course.times ?? [])
           .where((time) => !removedTimes.contains(time))
+          .followedBy(newTimes)
+          .toSet()
           .toList()
-        ..addAll(newTimes)
         ..sort();
       if (course.isManuallyAdded) {
         manualCourses ??= getCourseList();
@@ -661,8 +663,7 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
           PlatformContextMenuItem(
             menuContext: menuContext,
             onPressed: () {
-              Navigator.of(menuContext).pop();
-              _showCourseNoteEditor(course);
+                            _showCourseNoteEditor(course);
             },
             child: Text(hasNote
                 ? S.of(menuContext).edit_course_note
@@ -672,8 +673,7 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
             PlatformContextMenuItem(
               menuContext: menuContext,
               onPressed: () {
-                Navigator.of(menuContext).pop();
-                EditCourseEvent(course).fire();
+                                EditCourseEvent(course).fire();
               },
               child: Text(S.of(menuContext).edit_course),
             ),
@@ -681,24 +681,21 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
             PlatformContextMenuItem(
               menuContext: menuContext,
               onPressed: () {
-                Navigator.of(menuContext).pop();
-                _restoreCoursePosition(course);
+                                _restoreCoursePosition(course);
               },
               child: Text(S.of(menuContext).restore_course_position),
             ),
           PlatformContextMenuItem(
             menuContext: menuContext,
             onPressed: () {
-              Navigator.of(menuContext).pop();
-              _onTapCourse(block);
+                            _onTapCourse(block);
             },
             child: Text(S.of(menuContext).course_details),
           ),
           PlatformContextMenuItem(
             menuContext: menuContext,
             onPressed: () {
-              Navigator.of(menuContext).pop();
-              _deleteCourse(course);
+                            _deleteCourse(course);
             },
             child: Text(S.of(menuContext).delete_course),
           ),
