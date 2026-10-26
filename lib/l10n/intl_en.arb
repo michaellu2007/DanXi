@@ -567,5 +567,17 @@
   "ai_summary_disclaimer": "AI-generated, for reference only. Internal research testing, not a public service.",
   "ai_summary_trace_copied": "Trace ID copied",
   "ai_summary_enable": "AI Summary",
-  "ai_summary_enable_description": "Show AI summary button on post detail page"
+  "ai_summary_enable_description": "Show AI summary button on post detail page",
+  "course_note": "Note",
+  "course_note_hint": "e.g. Bring lab report",
+  "add_course_note": "Add Note",
+  "edit_course_note": "Edit Note",
+  "edit_course": "Edit Course",
+  "course_details": "Course Details",
+  "delete_course": "Delete Course",
+  "delete_course_confirm": "Delete this course? You can add it back manually afterwards.",
+  "delete_synced_course_confirm": "This course is synced from the academic system and will only be hidden locally. Use \"Reset Timetable Customizations\" to restore it.",
+  "restore_course_position": "Restore Original Position",
+  "reset_timetable_customization": "Reset Timetable Customizations",
+  "reset_timetable_customization_confirm": "Reset all timetable customizations? Moved courses will return to their synced positions, hidden courses will reappear and notes will be removed."
 }

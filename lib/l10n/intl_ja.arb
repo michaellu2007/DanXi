@@ -550,5 +550,17 @@
   "ai_summary_disclaimer": "AI生成、参考用のみ · 学内研究テスト、外部サービスではありません",
   "ai_summary_trace_copied": "Trace IDをコピーしました",
   "ai_summary_enable": "AI要約",
-  "ai_summary_enable_description": "投稿詳細ページにAI要約ボタンを表示"
+  "ai_summary_enable_description": "投稿詳細ページにAI要約ボタンを表示",
+  "course_note": "メモ",
+  "course_note_hint": "例：実験レポートを持参",
+  "add_course_note": "メモを追加",
+  "edit_course_note": "メモを編集",
+  "edit_course": "授業を編集",
+  "course_details": "詳細を見る",
+  "delete_course": "授業を削除",
+  "delete_course_confirm": "この授業を削除しますか？後で手動で再追加できます。",
+  "delete_synced_course_confirm": "教務システムから同期した授業はローカルで非表示になるだけです。「時間割のカスタマイズをリセット」で復元できます。",
+  "restore_course_position": "元の位置に戻す",
+  "reset_timetable_customization": "時間割のカスタマイズをリセット",
+  "reset_timetable_customization_confirm": "すべての時間割カスタマイズをリセットしますか？移動した授業は同期位置に戻り、非表示の授業が再表示され、メモは削除されます。"
 }

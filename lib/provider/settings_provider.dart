@@ -75,6 +75,10 @@ class SettingsProvider with ChangeNotifier {
   static const String KEY_PRIMARY_SWATCH_V2 = "primary_swatch_v2";
   static const String KEY_PREFERRED_LANGUAGE = "language";
   static const String KEY_MANUALLY_ADDED_COURSE = "new_courses";
+  static const String KEY_TIMETABLE_COURSE_OVERRIDES =
+      "timetable_course_overrides";
+  static const String KEY_TIMETABLE_HIDDEN_COURSES = "timetable_hidden_courses";
+  static const String KEY_TIMETABLE_COURSE_NOTES = "timetable_course_notes";
   static const String KEY_TAG_SUGGESTIONS_ENABLE = "tag_suggestions";
   static const String KEY_LIGHT_WATERMARK_COLOR = "light_watermark_color";
   static const String KEY_DARK_WATERMARK_COLOR = "dark_watermark_color";
@@ -432,6 +436,66 @@ class SettingsProvider with ChangeNotifier {
       preferences!.setString(KEY_MANUALLY_ADDED_COURSE, jsonEncode(value));
     } else if (preferences!.containsKey(KEY_MANUALLY_ADDED_COURSE)) {
       preferences!.remove(KEY_MANUALLY_ADDED_COURSE);
+    }
+    notifyListeners();
+  }
+
+  /// Locally overridden course times (moved by dragging on the timetable),
+  /// keyed by course id. Applied on top of the remotely synced timetable.
+  Map<String, List<CourseTime>> get timetableCourseOverrides {
+    if (preferences!.containsKey(KEY_TIMETABLE_COURSE_OVERRIDES)) {
+      final raw = json.decode(
+          preferences!.getString(KEY_TIMETABLE_COURSE_OVERRIDES)!)
+          as Map<String, dynamic>;
+      return raw.map((key, value) => MapEntry(
+          key,
+          (value as List)
+              .map((i) => CourseTime.fromJson(i as Map<String, dynamic>))
+              .toList()));
+    }
+    return {};
+  }
+
+  set timetableCourseOverrides(Map<String, List<CourseTime>>? value) {
+    if (value != null) {
+      preferences!.setString(KEY_TIMETABLE_COURSE_OVERRIDES,
+          jsonEncode(value.map((key, times) => MapEntry(key, times))));
+    } else if (preferences!.containsKey(KEY_TIMETABLE_COURSE_OVERRIDES)) {
+      preferences!.remove(KEY_TIMETABLE_COURSE_OVERRIDES);
+    }
+    notifyListeners();
+  }
+
+  /// Course ids of remotely synced courses the user removed from the timetable.
+  List<String> get timetableHiddenCourses =>
+      preferences!.getStringList(KEY_TIMETABLE_HIDDEN_COURSES) ?? [];
+
+  set timetableHiddenCourses(List<String>? value) {
+    if (value != null && value.isNotEmpty) {
+      preferences!.setStringList(KEY_TIMETABLE_HIDDEN_COURSES, value);
+    } else if (preferences!.containsKey(KEY_TIMETABLE_HIDDEN_COURSES)) {
+      preferences!.remove(KEY_TIMETABLE_HIDDEN_COURSES);
+    }
+    notifyListeners();
+  }
+
+  /// User notes attached to courses, keyed by course id.
+  Map<String, String> get timetableCourseNotes {
+    if (preferences!.containsKey(KEY_TIMETABLE_COURSE_NOTES)) {
+      final raw =
+          json.decode(preferences!.getString(KEY_TIMETABLE_COURSE_NOTES)!)
+              as Map<String, dynamic>;
+      return raw.map((key, value) => MapEntry(key, value as String));
+    }
+    return {};
+  }
+
+  set timetableCourseNotes(Map<String, String>? value) {
+    if (value != null && value.isNotEmpty) {
+      preferences!
+          .setString(KEY_TIMETABLE_COURSE_NOTES, jsonEncode(value));
+    } else if (preferences!.containsKey(KEY_TIMETABLE_COURSE_NOTES)) {
+      preferences!.remove(KEY_TIMETABLE_COURSE_NOTES);
     }
     notifyListeners();
   }

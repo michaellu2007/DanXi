@@ -99,6 +99,13 @@ class TimetableSubPage extends PlatformSubpage<TimetableSubPage> {
               : CupertinoIcons.square_arrow_up),
           () => ShareTimetableEvent().fire(),
         ),
+        AppBarButtonItem(
+          S.of(cxt).reset_timetable_customization,
+          Icon(PlatformX.isMaterial(cxt)
+              ? Icons.restore
+              : CupertinoIcons.arrow_counterclockwise),
+          () => ResetTimetableCustomizationEvent().fire(),
+        ),
       ];
 
   @override
@@ -128,6 +135,8 @@ class EditCourseEvent {
   EditCourseEvent(this.course);
 }
 
+class ResetTimetableCustomizationEvent {}
+
 class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
   final StateStreamListener<ShareTimetableEvent> _shareSubscription =
       StateStreamListener();
@@ -135,6 +144,8 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
       StateStreamListener();
   final StateStreamListener<EditCourseEvent> _editCourseSubscription =
       StateStreamListener();
+  final StateStreamListener<ResetTimetableCustomizationEvent>
+      _resetCustomizationSubscription = StateStreamListener();
 
   static const String KEY_MANUALLY_ADDED_COURSE = "new_courses";
 
@@ -148,6 +159,10 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
 
   ///The week it's showing on the time table.
   TimeNow? _showingTime;
+
+  /// The day lanes built for the [ScheduleView], kept so that drag callbacks
+  /// can map a lane index back to a real weekday.
+  List<DayEvents>? _scheduleData;
 
   Future<TimeTable?>? _contentFuture;
 
@@ -200,8 +215,31 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
       _contentFuture = LazyFuture.pack(
           Future<TimeTable?>.error(NotLoginError(S.current.not_fudan_student)));
     }
-    _contentFuture?.then(
-        (value) => TimeTable.mergeManuallyAddedCourses(value, newCourses));
+    _contentFuture?.then((value) {
+      TimeTable merged =
+          TimeTable.mergeManuallyAddedCourses(value, newCourses);
+      _applyLocalCustomizations(merged);
+    });
+  }
+
+  /// Apply the user's local customizations (dragged positions and hidden
+  /// courses) on top of the cached or freshly synced timetable.
+  ///
+  /// The repository always parses the timetable from its raw JSON cache, so
+  /// in-place mutations below never leak into the cache.
+  void _applyLocalCustomizations(TimeTable table) {
+    if (table.courses == null) return;
+    final List<String> hidden =
+        SettingsProvider.getInstance().timetableHiddenCourses;
+    final Map<String, List<CourseTime>> overrides =
+        SettingsProvider.getInstance().timetableCourseOverrides;
+    if (hidden.isEmpty && overrides.isEmpty) return;
+    table.courses = table.courses!
+        .whereNot((course) => hidden.contains(course.courseId))
+        .map((course) {
+      final List<CourseTime>? newTimes = overrides[course.courseId];
+      return newTimes == null ? course : (course..times = newTimes);
+    }).toList();
   }
 
   void _startShare(
@@ -326,6 +364,11 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
       }),
       hashCode,
     );
+    _resetCustomizationSubscription.bindOnlyInvalid(
+        Constant.eventBus
+            .on<ResetTimetableCustomizationEvent>()
+            .listen((_) => _resetTimetableCustomization()),
+        hashCode);
   }
 
   TutorialCoachMark createTutorial() => TutorialCoachMark(
@@ -427,6 +470,7 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
     _shareSubscription.cancel();
     _addCourseSubscription.cancel();
     _editCourseSubscription.cancel();
+    _resetCustomizationSubscription.cancel();
   }
 
   @override
@@ -466,57 +510,69 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
     });
   }
 
-  Widget _buildCourseItem(Event event, BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
-            children: [
-              Expanded(
-                  child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+  Widget _buildCourseItem(Event event, BuildContext context) {
+    final String? note = SettingsProvider.getInstance()
+        .timetableCourseNotes[event.course.courseId];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            Expanded(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.course.courseName ?? "null",
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                if (event.course.teacherNames != null)
+                  Text(event.course.teacherNames!.join(",")),
+                if (event.course.roomName != null)
+                  Text(event.course.roomName!),
+                if (event.course.courseId != null)
+                  Text(event.course.courseId!),
+                if (note != null && note.isNotEmpty)
                   Text(
-                    event.course.courseName ?? "null",
-                    style: Theme.of(context).textTheme.titleLarge,
+                    note,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(fontStyle: FontStyle.italic),
                   ),
-                  if (event.course.teacherNames != null)
-                    Text(event.course.teacherNames!.join(",")),
-                  if (event.course.roomName != null)
-                    Text(event.course.roomName!),
-                  if (event.course.courseId != null)
-                    Text(event.course.courseId!),
-                ],
-              )),
-              if (event.course.isManuallyAdded) ...[
-                PlatformIconButton(
-                  icon: Icon(
-                    PlatformX.isMaterial(context)
-                        ? Icons.edit
-                        : CupertinoIcons.pencil,
-                  ),
-                  onPressed: () async {
-                    EditCourseEvent(event.course).fire();
-                    Navigator.of(context).pop();
-                  },
+              ],
+            )),
+            if (event.course.isManuallyAdded) ...[
+              PlatformIconButton(
+                icon: Icon(
+                  PlatformX.isMaterial(context)
+                      ? Icons.edit
+                      : CupertinoIcons.pencil,
                 ),
-                PlatformIconButton(
-                  icon: Icon(PlatformX.isMaterial(context)
-                      ? Icons.delete
-                      : CupertinoIcons.delete),
-                  onPressed: () {
-                    newCourses.removeWhere(
-                        (e) => e.courseId == event.course.courseId);
-                    SettingsProvider.getInstance().manualAddedCourses =
-                        newCourses;
-                    Navigator.of(context).pop();
-                    refresh();
-                  },
-                ),
-              ]
-            ],
-          ),
+                onPressed: () async {
+                  EditCourseEvent(event.course).fire();
+                  Navigator.of(context).pop();
+                },
+              ),
+              PlatformIconButton(
+                icon: Icon(PlatformX.isMaterial(context)
+                    ? Icons.delete
+                    : CupertinoIcons.delete),
+                onPressed: () {
+                  newCourses.removeWhere(
+                      (e) => e.courseId == event.course.courseId);
+                  SettingsProvider.getInstance().manualAddedCourses =
+                      newCourses;
+                  Navigator.of(context).pop();
+                  refresh();
+                },
+              ),
+            ]
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   void _onTapCourse(ScheduleBlock block) {
     showPlatformModalSheet(
@@ -530,6 +586,211 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
         ),
       ),
     );
+  }
+
+  /// Persist a drag-and-drop move of [block] to lane [day], first slot
+  /// [firstSlot].
+  ///
+  /// Manually added courses are updated in place in
+  /// [SettingsProvider.manualAddedCourses]; remotely synced courses get a
+  /// local time override keyed by course id, which survives re-syncing.
+  void _onMoveCourse(ScheduleBlock block, int day, int firstSlot) {
+    if (_table?.courses == null) return;
+    final int weekday = (_scheduleData != null && day < _scheduleData!.length)
+        ? _scheduleData![day].weekday
+        : day;
+    final int span = block.slotSpan;
+    // Group the dragged cells by course: a block may contain the events of
+    // several overlapping courses, which then move together.
+    final Map<Course, List<CourseTime>> movedCells = {};
+    for (final event in block.event) {
+      movedCells.putIfAbsent(event.course, () => []).add(event.time);
+    }
+    final settings = SettingsProvider.getInstance();
+    List<Course>? manualCourses;
+    bool manualChanged = false;
+    movedCells.forEach((course, removedTimes) {
+      final List<CourseTime> newTimes = [
+        for (int s = 0; s < span; s++) CourseTime(weekday, firstSlot + s)
+      ];
+      final List<CourseTime> updatedTimes = (course.times ?? [])
+          .where((time) => !removedTimes.contains(time))
+          .toList()
+        ..addAll(newTimes)
+        ..sort();
+      if (course.isManuallyAdded) {
+        manualCourses ??= getCourseList();
+        final int index =
+            manualCourses!.indexWhere((c) => c.courseId == course.courseId);
+        if (index >= 0) {
+          manualCourses![index] =
+              manualCourses![index].copyWith(times: updatedTimes);
+          manualChanged = true;
+        }
+      } else if (course.courseId != null) {
+        final Map<String, List<CourseTime>> overrides =
+            settings.timetableCourseOverrides;
+        overrides[course.courseId!] = updatedTimes;
+        settings.timetableCourseOverrides = overrides;
+      }
+      course.times = updatedTimes;
+    });
+    if (manualChanged) {
+      settings.manualAddedCourses = manualCourses;
+    }
+    // [_table] is updated in place; rebuild the week view.
+    setState(() {});
+  }
+
+  void _onLongPressCourse(ScheduleBlock block, int day) {
+    final Course course = block.event.first.course;
+    final settings = SettingsProvider.getInstance();
+    final bool hasNote =
+        (settings.timetableCourseNotes[course.courseId] ?? "").isNotEmpty;
+    final bool hasOverride = !course.isManuallyAdded &&
+        course.courseId != null &&
+        settings.timetableCourseOverrides.containsKey(course.courseId);
+    showPlatformModalSheet(
+      context: context,
+      builder: (menuContext) => PlatformContextMenu(
+        cancelButton: CupertinoActionSheetAction(
+          child: Text(S.of(menuContext).cancel),
+          onPressed: () => Navigator.of(menuContext).pop(),
+        ),
+        actions: [
+          PlatformContextMenuItem(
+            menuContext: menuContext,
+            onPressed: () {
+              Navigator.of(menuContext).pop();
+              _showCourseNoteEditor(course);
+            },
+            child: Text(hasNote
+                ? S.of(menuContext).edit_course_note
+                : S.of(menuContext).add_course_note),
+          ),
+          if (course.isManuallyAdded)
+            PlatformContextMenuItem(
+              menuContext: menuContext,
+              onPressed: () {
+                Navigator.of(menuContext).pop();
+                EditCourseEvent(course).fire();
+              },
+              child: Text(S.of(menuContext).edit_course),
+            ),
+          if (hasOverride)
+            PlatformContextMenuItem(
+              menuContext: menuContext,
+              onPressed: () {
+                Navigator.of(menuContext).pop();
+                _restoreCoursePosition(course);
+              },
+              child: Text(S.of(menuContext).restore_course_position),
+            ),
+          PlatformContextMenuItem(
+            menuContext: menuContext,
+            onPressed: () {
+              Navigator.of(menuContext).pop();
+              _onTapCourse(block);
+            },
+            child: Text(S.of(menuContext).course_details),
+          ),
+          PlatformContextMenuItem(
+            menuContext: menuContext,
+            onPressed: () {
+              Navigator.of(menuContext).pop();
+              _deleteCourse(course);
+            },
+            child: Text(S.of(menuContext).delete_course),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showCourseNoteEditor(Course course) async {
+    if (course.courseId == null) return;
+    final settings = SettingsProvider.getInstance();
+    final controller = TextEditingController(
+        text: settings.timetableCourseNotes[course.courseId] ?? "");
+    final String? result = await showPlatformDialog<String?>(
+      context: context,
+      builder: (dialogContext) => PlatformAlertDialog(
+        title: Text(S.of(dialogContext).course_note),
+        content: PlatformTextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          hintText: S.of(dialogContext).course_note_hint,
+        ),
+        actions: [
+          PlatformDialogAction(
+            child: Text(S.of(dialogContext).cancel),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+          PlatformDialogAction(
+            child: Text(S.of(dialogContext).ok),
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || result == null) return;
+    final Map<String, String> notes = settings.timetableCourseNotes;
+    final String trimmed = result.trim();
+    if (trimmed.isEmpty) {
+      notes.remove(course.courseId);
+    } else {
+      notes[course.courseId!] = trimmed;
+    }
+    settings.timetableCourseNotes = notes;
+    setState(() {});
+  }
+
+  Future<void> _deleteCourse(Course course) async {
+    final settings = SettingsProvider.getInstance();
+    final bool manual = course.isManuallyAdded;
+    final bool? confirmed = await Noticing.showConfirmationDialog(
+        context,
+        manual
+            ? S.of(context).delete_course_confirm
+            : S.of(context).delete_synced_course_confirm);
+    if (confirmed != true || !mounted) return;
+    if (manual) {
+      newCourses.removeWhere((c) => c.courseId == course.courseId);
+      settings.manualAddedCourses = newCourses;
+    } else if (course.courseId != null) {
+      final List<String> hidden = settings.timetableHiddenCourses;
+      if (!hidden.contains(course.courseId)) hidden.add(course.courseId!);
+      settings.timetableHiddenCourses = hidden;
+    }
+    refresh();
+  }
+
+  /// Drop the local position override of a synced course, so it returns to
+  /// whatever the academic system reports.
+  void _restoreCoursePosition(Course course) {
+    if (course.courseId == null) return;
+    final settings = SettingsProvider.getInstance();
+    final Map<String, List<CourseTime>> overrides =
+        settings.timetableCourseOverrides;
+    if (overrides.remove(course.courseId) != null) {
+      settings.timetableCourseOverrides = overrides;
+      refresh();
+    }
+  }
+
+  /// Undo all local timetable customizations: moved courses, hidden courses
+  /// and notes.
+  Future<void> _resetTimetableCustomization() async {
+    if (_table == null || !mounted) return;
+    final bool? confirmed = await Noticing.showConfirmationDialog(
+        context, S.of(context).reset_timetable_customization_confirm);
+    if (confirmed != true || !mounted) return;
+    final settings = SettingsProvider.getInstance();
+    settings.timetableCourseOverrides = null;
+    settings.timetableHiddenCourses = null;
+    settings.timetableCourseNotes = null;
+    refresh();
   }
 
   Widget _buildPage(BuildContext context, TimeTable table) {
@@ -550,6 +811,7 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
 
     final List<DayEvents> scheduleData = _table!
         .toDayEvents(_showingTime!.week, compact: TableDisplayType.STANDARD);
+    _scheduleData = scheduleData;
     return RefreshIndicator(
       key: indicatorKey,
       edgeOffset: MediaQuery.of(context).padding.top,
@@ -585,6 +847,10 @@ class TimetableSubPageState extends PlatformSubpageState<TimetableSubPage> {
             _table!.now(),
             _showingTime!.week,
             tapCallback: _onTapCourse,
+            courseNotes:
+                SettingsProvider.getInstance().timetableCourseNotes,
+            moveCallback: _onMoveCourse,
+            longPressCallback: _onLongPressCourse,
           ),
           SizedBox(
             height: 10,

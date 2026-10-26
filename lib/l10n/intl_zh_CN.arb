@@ -561,5 +561,17 @@
   "ai_summary_disclaimer": "AI 辅助总结，仅供参考 · 校内科研测试，不对外提供服务",
   "ai_summary_trace_copied": "Trace ID 已复制",
   "ai_summary_enable": "AI 总结",
-  "ai_summary_enable_description": "在帖子详情页显示 AI 总结按钮"
+  "ai_summary_enable_description": "在帖子详情页显示 AI 总结按钮",
+  "course_note": "备注",
+  "course_note_hint": "例如：带实验报告",
+  "add_course_note": "添加备注",
+  "edit_course_note": "修改备注",
+  "edit_course": "编辑课程",
+  "course_details": "查看详情",
+  "delete_course": "删除课程",
+  "delete_course_confirm": "删除这门课程？之后可以重新手动添加。",
+  "delete_synced_course_confirm": "教务同步的课程仅在本地隐藏，可通过「重置课表自定义」恢复。",
+  "restore_course_position": "恢复原始位置",
+  "reset_timetable_customization": "重置课表自定义",
+  "reset_timetable_customization_confirm": "重置所有课表自定义？移动过的课程将回到教务同步的位置，隐藏的课程会重新显示，备注将被清除。"
 }

@@ -561,5 +561,17 @@
   "ai_summary_disclaimer": "AI 輔助總結，僅供參考 · 校內科研測試，不對外提供服務",
   "ai_summary_trace_copied": "Trace ID 已複製",
   "ai_summary_enable": "AI 總結",
-  "ai_summary_enable_description": "在帖子詳情頁顯示 AI 總結按鈕"
+  "ai_summary_enable_description": "在帖子詳情頁顯示 AI 總結按鈕",
+  "course_note": "備註",
+  "course_note_hint": "例如：帶實驗報告",
+  "add_course_note": "新增備註",
+  "edit_course_note": "編輯備註",
+  "edit_course": "編輯課程",
+  "course_details": "查看詳情",
+  "delete_course": "刪除課程",
+  "delete_course_confirm": "刪除這門課程？之後可以重新手動新增。",
+  "delete_synced_course_confirm": "教務同步的課程僅在本地隱藏，可透過「重置課表自訂」恢復。",
+  "restore_course_position": "恢復原始位置",
+  "reset_timetable_customization": "重置課表自訂",
+  "reset_timetable_customization_confirm": "重置所有課表自訂？移動過的課程將回到教務同步的位置，隱藏的課程會重新顯示，備註將被清除。"
 }
